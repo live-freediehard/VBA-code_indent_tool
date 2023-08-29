@@ -1,0 +1,66 @@
+'######################################################################################
+'Purpose:Test Case Document'
+'Author:TCS'
+'Date:28/09/2009'
+'Version: 1.0 Initial version'
+'######################################################################################
+
+Sub Test_1()
+	
+Dim  Grade As String
+Dim LetterGrade As String
+
+Select Case Grade
+Case Is >= 90
+LetterGrade = "A"
+Case Is >= 80
+LetterGrade = "B"
+Case Is >= 70
+LetterGrade = "C"
+Case Is >= 60
+LetterGrade = "D"
+Case Else
+LetterGrade = "Sorry"
+End Select
+
+End Sub
+
+
+Sub Test_2()
+
+Dim i As Integer
+
+'This is Do-While
+i=1
+Do While i=<10
+Cells(i,1)=i
+i=i+1
+Loop
+
+'This is Do-Until
+i=1
+Do Until i=11
+Cells(i,1)=i
+i=i+1
+Loop
+
+'This is Do-Loop-While
+i=1
+Do
+Cells(i,1)=i
+i=i+1
+Loop While i<11
+
+'This is Do-Loop-Until
+i=1
+Do
+Cells(i,1)=i
+i=i+1
+Loop Until i=11
+
+End Sub
+
+
+
+
+

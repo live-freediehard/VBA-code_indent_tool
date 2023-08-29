@@ -1,0 +1,188 @@
+' ######################################################################################
+'  Macro Name : Document Generator                                                      '
+'  Purpose : Generates run book documents using template                                '
+'  Author : TCS                                                                         '
+'  Date : 28 / 09 / 2009                                                                '
+'  Version : 1.0 Initial version                                                        '
+'  Version : 1.1 Added new tabs and generated the layout as per new template            '
+'  Version : 1.2 Added monthly tables and info populated for the same                   '
+'  Version : 1.3 Added dynamic hyperlinking functionality for the process flow diagrams '
+' ######################################################################################
+
+' Global Arrays to store values to be used in templates and their respective counters
+Dim EDW_Array(20, 50)
+Dim EDW_r As Integer
+Dim EDW_c As Integer
+
+Dim MVI_Array(20, 50)
+Dim MVI_r As Integer
+Dim MVI_c As Integer
+
+Sub batch_mode()
+For Row = 49 To 59
+Key = ActiveWorkbook.Worksheets("EDW Process").Cells(Row, 3)
+Sys = ActiveWorkbook.Worksheets("EDW Process").Cells(Row, 4)
+Template = CurDir$ + "\Operations System - Process Word Template.doc"
+Doc_name = CurDir$ + "\" + UCase(Left(Key, 1)) + LCase(Right(Key, Len(Key) - 1)) + "_" + Sys + "_Proc.doc"
+Shell ("taskkill winword") ' ----> Kill active references of WORD
+FileCopy Template, Doc_name
+Call CleanUp
+Call Fetch_Data
+Next Row
+End Sub
+
+
+Sub Fetch_Data()
+'############################# Configuration variables for Tabs ###########################
+
+
+' Initialization of counters ##########################################################
+EDW_c = 1
+EDW_r = 1
+MVI_r = 1
+MVI_c = 1
+'Initialization of counters #######################################################
+
+S_tx = Timer
+
+' ####################################### Pumping Data #################################
+' Storing EDW_Process data
+For Row = Config_EDW_row_st To Config_EDW_row_end
+If ActiveWorkbook.Worksheets("EDW Process").Cells(Row, 3) = Key And ActiveWorkbook.Worksheets("EDW Process").Cells(Row, 4) = Sys Then
+For Col = Config_EDW_col_st To Config_EDW_col_end
+EDW_Array(EDW_r, EDW_c) = ActiveWorkbook.Worksheets("EDW Process").Cells(Row, Col)
+'MsgBox ("(" + CStr(EDW_r) + "," + CStr(EDW_c) + ") : " + CStr(EDW_Array(EDW_r, EDW_c)))
+EDW_c = EDW_c + 1
+Next Col
+EDW_r = EDW_r + 1
+EDW_c = 1
+End If
+Next Row
+
+If EDW_r > 2 Then
+MsgBox ("Multiple System Id Found for Subject Area ! Please Filter to have single System Id !")
+End
+End If
+Call Parse_Template ' ################### Call Parse Template to populate data #############
+End Sub
+' ####################################### Pumping Data #################################
+
+
+
+' ######################### This will populate data into tables ########################
+Sub Parse_Template()
+
+' Strings and objects declarations
+Dim intCells As Integer
+Dim celTable As Word.Cell
+Dim strCells() As String
+Dim intCount As Integer
+Dim rngText As Word.Range
+' End declarations
+
+' Create a reference to word object (Ensure that MS Word Object is selected in Tools->References)
+Set wordApp = CreateObject("Word.Application")
+Set worddoc = wordApp.Documents.Open(Filename:=Doc_name)
+
+
+
+
+Application.StatusBar = "Creating Document Please Wait......"
+
+With wordApp.ActiveDocument.Tables(1).Range
+intCells = .Cells.Count
+ReDim strCells(intCells)
+intCount = 1
+
+For Each celTable In .Cells
+
+For Lookup = 1 To 3
+If strCells(intCount - 1) = Tbl1_Arr(Lookup, 1) Then
+celTable.Range = EDW_Array(Tbl1_Arr(Lookup, 2), Tbl1_Arr(Lookup, 3))
+If Trim(CStr(EDW_Array(Tbl1_Arr(Lookup, 2), Tbl1_Arr(Lookup, 3)))) = "*" Then
+celTable.Range.HighlightColorIndex = wdRed
+celTable.Previous.Range.HighlightColorIndex = wdRed
+End If
+End If
+Next Lookup
+
+Set rngText = celTable.Range
+rngText.MoveEnd Unit:=wdCharacter, Count:=-1
+strCells(intCount) = rngText
+intCount = intCount + 1
+Next celTable
+
+End With ' End Sub routine
+' Table INTRODUCTION is populated ######################################################
+
+
+
+' ############################ Text Replaced #######################################
+
+' ######### Adding a dynamic reference to the flow diagram #########################
+With wordApp.ActiveDocument
+Dim Flw As String
+Dim EsFl As String
+EsFl = "Credit_Escalation_Flow_Diagram"
+Flw = Sys + "_Process_Flow_Diagram"
+
+wordApp.ActiveDocument.Hyperlinks(25).TextToDisplay = Flw
+wordApp.ActiveDocument.Hyperlinks(25).Address = CurDir$ + "\Flowdiagrams\" + Flw + ".doc"
+wordApp.ActiveDocument.Hyperlinks(26).TextToDisplay = EsFl
+wordApp.ActiveDocument.Hyperlinks(26).Address = CurDir$ + "\Flowdiagrams\" + EsFl + ".doc"
+End With
+' ##################################################################################
+
+' #### Cleansing and Saving newly created document ####
+wordApp.ActiveDocument.Save
+wordApp.Quit
+Set wordApp = Nothing
+Set worddoc = Nothing
+Set rngText = Nothing
+Set celTable = Nothing
+
+E_tx = Timer
+Application.StatusBar = "Document has been created in : " + CStr(E_tx - S_tx) + " Seconds !"
+End Sub
+' ################################ Data is populated into tables ##########################
+
+
+
+' ################################ Start Point #############################################
+' ####################### Create a copy template by key name ###############################
+Sub Copy_Template()
+
+
+Dim Template As String
+Key = ActiveCell.Value ' ----> Take up the selected value in active tab
+Sys = ActiveCell.Offset(0, 1)
+
+If Lck <> 1 Then
+Lck = 1 ' Set the lock
+' Check for the validation whether the key is valid one or not
+If Key = "" Or ActiveCell.Column <> 3 Or Application.ActiveSheet.Name <> "EDW Process" Then
+Application.StatusBar = "Invalid Key ! Please select valid key"
+End
+End If
+
+' Take reference of current folder and create a file as per convention
+Template = CurDir$ + "\Operations System - Process Word Template.doc"
+Doc_name = CurDir$ + "\" + UCase(Left(ActiveCell.Value, 1)) + LCase(Right(ActiveCell.Value, Len(ActiveCell.Value) - 1)) + "_" + ActiveCell.Offset(0, 1) + "_Proc.doc"
+Shell ("taskkill winword") ' ----> Kill active references of WORD
+If Dir$(Template) <> "" And Dir$(Doc_name) = "" Then
+FileCopy Template, Doc_name
+Call CleanUp
+Call Fetch_Data ' Call Sub fetch data to populate the data
+Else: MsgBox ("Template file not found... Or Document already present in folder ! Cannot Create Document")
+End If
+Else
+Call MsgBox(" Document generation in progress ! Please Wait ....", vbExclamation, "Doc generation")
+End If
+Lck = 0 ' release lock
+End Sub
+' ##################################### Sub Copy #######################################
+
+
+
+
+
